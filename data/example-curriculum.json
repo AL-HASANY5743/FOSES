@@ -1,0 +1,39 @@
+{
+  "subjects": [
+    {
+      "name": "اللغة الإنجليزية",
+      "nameEn": "English",
+      "description": "منهج تجريبي للاستيراد",
+      "color": "#6366f1",
+      "icon": "🇬🇧",
+      "chapters": [
+        {
+          "title": "الفصل الأول",
+          "pages": "5-20",
+          "topics": [
+            {
+              "title": "Unit 1",
+              "lessons": [
+                { "title": "Lesson 1: Hello", "content": "مفردات + حوار", "duration": 25, "pageFrom": 5, "pageTo": 9 },
+                { "title": "Lesson 2: Grammar", "content": "المضارع البسيط", "duration": 30, "pages": "10-14" }
+              ]
+            }
+          ]
+        }
+      ],
+      "exams": [
+        {
+          "title": "امتحان الفصل الأول",
+          "scope": "من Unit 1 إلى Unit 2",
+          "date": "2026-11-01",
+          "notes": "تذكير: مراجعة المفردات والقواعد"
+        }
+      ]
+    }
+  ],
+  "timetable": {
+    "السبت": ["اللغة الإنجليزية"],
+    "الأحد": ["اللغة الإنجليزية"],
+    "الاثنين": []
+  }
+}

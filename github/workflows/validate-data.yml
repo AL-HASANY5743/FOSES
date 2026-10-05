@@ -1,0 +1,15 @@
+name: Validate curriculum JSON
+on:
+  pull_request:
+    paths: ['data/**.json']
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node -e "const fs=require('fs');const f='data/example-curriculum.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));const s=j.subjects||[j];if(!Array.isArray(s))throw new Error('bad');console.log('OK subjects:',s.length)"
+# وظيفته: فحص ملفات المناهج المثال عند PR — event-based فقط ولا يعمل باستمرار.

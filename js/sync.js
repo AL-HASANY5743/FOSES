@@ -1,0 +1,58 @@
+// Sync engine: offline-first, debounced push, pull-on-login, conflict-safe.
+import { getDB } from './store.js';
+import { pullAll, pushAll, ensureDataRepo, readFile } from './github.js';
+import { getToken, getSession } from './auth.js';
+import { CONFIG } from './config.js';
+import { normalizeExams, ensureTimetable } from './models.js';
+
+let shas={};
+let timer=null, syncing=false, lastStatus='local';
+const subs=new Set();
+export const onSync=s=>{subs.add(s);return()=>subs.delete(s)};
+function setStatus(st,msg){ lastStatus=st; subs.forEach(f=>{try{f(st,msg)}catch{}}); paintDot(st); }
+function paintDot(st){ const d=document.getElementById('syncDot'); if(!d) return; d.className='sync-dot'+(st==='synced'?'':st==='local'?' off':' err'); d.title='sync: '+st; }
+export const syncStatus=()=>lastStatus;
+export const getShas=()=>shas;
+
+export async function initialSync(){
+  const tok=getToken(), sess=getSession();
+  if(!tok || !sess?.login){ setStatus('local'); return false; }
+  const repo=sess.repoName||CONFIG.dataRepoName, branch=sess.branch||'main';
+  try{
+    setStatus('syncing');
+    await ensureDataRepo(tok,sess.login,repo,sess.private!==false,branch);
+    const {out,shas:newShas}=await pullAll(tok,sess.login,repo,CONFIG.files,branch);
+    shas=newShas;
+    if(Object.keys(out).length){
+      const db=getDB();
+      for(const [k,v] of Object.entries(out)){ if(v!==undefined) db[k]=v; }
+      normalizeExams(db);
+      ensureTimetable(db);
+      const { saveLocal }=await import('./store.js'); saveLocal();
+    } else {
+      await pushNow('init 🌱 تهيئة مخزن الدراسة');
+    }
+    setStatus('synced'); return true;
+  }catch(e){ console.warn(e); setStatus('error',e.message); return false; }
+}
+
+export function schedulePush(){
+  const tok=getToken(); if(!tok){ setStatus('local'); return; }
+  setStatus('local');
+  clearTimeout(timer); timer=setTimeout(()=>pushNow().catch(()=>{}), 2500);
+}
+export async function pushNow(msg='📚 fos: sync'){
+  const tok=getToken(), sess=getSession();
+  if(!tok||!sess?.login||syncing) return false;
+  syncing=true; setStatus('syncing');
+  try{
+    const db=getDB();
+    const snap={}; for(const f of CONFIG.files){ snap[f.replace('.json','')]=db[f.replace('.json','')] ?? null; }
+    shas=await pushAll(tok,sess.login,sess.repoName||CONFIG.dataRepoName,snap,shas,sess.branch||'main');
+    setStatus('synced'); return true;
+  }catch(e){ console.warn(e); setStatus('error',e.message); return false; }
+  finally{ syncing=false; }
+}
+
+window.addEventListener('foses-dirty', ()=>schedulePush());
+window.addEventListener('online', ()=>pushNow('📚 fos: reconnect sync'));

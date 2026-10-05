@@ -1,0 +1,19 @@
+{
+  "name": "FOSES — نظّم دراستك",
+  "short_name": "FOSES",
+  "description": "مدرسة إلكترونية مجانية مفتوحة المصدر — بياناتك في GitHub الخاص بك.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#070B14",
+  "theme_color": "#070B14",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "./assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

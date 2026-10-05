@@ -1,0 +1,23 @@
+name: foses-push
+# تنبيهات FOSES على الهاتف — مجاني بالكامل عبر GitHub Actions (مجدول يوميًا + تشغيل يدوي للاختبار)
+# يوضع هذا الملف في مستودع بيانات المستخدم: .github/workflows/foses-push.yml
+# السر المطلوب: FOSES_VAPID_PRIVATE (محتوى المفتاح الخاص JWK) في Settings → Secrets → Actions
+on:
+  schedule:
+    - cron: '15 6 * * *'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'إرسال تنبيه اختبار (true/false)'
+        required: false
+        default: 'false'
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node .github/foses/send-push.mjs
+        env:
+          VAPID_PRIVATE_JWK: ${{ secrets.FOSES_VAPID_PRIVATE }}
+          VAPID_SUBJECT: ${{ vars.FOSES_VAPID_SUBJECT }}
+          TEST_MODE: ${{ inputs.test }}
