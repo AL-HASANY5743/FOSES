@@ -29,14 +29,14 @@ export async function pLogin(el){
   <p class="muted small">الرمز يُحفظ في متصفحك فقط ولا يُرسل إلا إلى api.github.com.</p></div>
   <div class="card"><b>أو: ربط الجهاز (بدون لصق رمز)</b><p class="muted small">يتطلب إنشاء تطبيق OAuth وتفعيل ربط الأجهزة، ثم أدخل معرّف العميل (علني وآمن).</p>
   <label>معرّف العميل</label><input id="cid" placeholder="Ov23li..." dir="ltr"><button class="btn ghost" id="dev" style="margin-top:8px">بدء ربط الجهاز</button><div id="dmsg" class="small muted"></div></div>`;
-  el.querySelector('#demo').onclick=async()=>{ setSession({login:null,name:'ضيف',demo:true}); location.hash='#/dashboard'; };
+  el.querySelector('#demo').onclick=async()=>{ setSession({login:null,name:'ضيف',demo:true}, true); location.hash='#/dashboard'; };
   el.querySelector('#go').onclick=async()=>{
     const tok=el.querySelector('#tok').value.trim(); if(!tok) return toast('الصق الرمز أولًا');
     try{
       const me=await fetchMe(tok);
       const isPrivate=el.querySelector('#priv').checked;
       setToken(tok,true); sessionStorage.setItem('foses-token',tok);
-      setSession({login:me.login,name:me.name||me.login,avatar:me.avatar_url,email:me.email,id:me.id,repoName:CONFIG.dataRepoName,branch:'main',private:isPrivate});
+      setSession({login:me.login,name:me.name||me.login,avatar:me.avatar_url,email:me.email,id:me.id,repoName:CONFIG.dataRepoName,branch:'main',private:isPrivate}, true);
       document.getElementById('avatar')?.classList.remove('hidden');
       const av=document.getElementById('avatar'); if(av) av.src=me.avatar_url;
       toast('تم الدخول ✅ جارٍ تجهيز مخزن البيانات...');
@@ -51,7 +51,7 @@ export async function pLogin(el){
       const t=await devicePoll(cid,d.device_code,d.interval||5);
       const me=await fetchMe(t.access_token);
       setToken(t.access_token,true); sessionStorage.setItem('foses-token',t.access_token);
-      setSession({login:me.login,name:me.name||me.login,avatar:me.avatar_url,email:me.email,id:me.id,repoName:CONFIG.dataRepoName,branch:'main',private:true});
+      setSession({login:me.login,name:me.name||me.login,avatar:me.avatar_url,email:me.email,id:me.id,repoName:CONFIG.dataRepoName,branch:'main',private:true}, true);
       await initialSync(); location.hash='#/dashboard';
     }catch(e){ toast('فشل الربط: '+e.message); }
   };
