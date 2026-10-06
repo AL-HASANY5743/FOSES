@@ -8,7 +8,20 @@ import { icon } from '../icons.js';
 export async function pLessons(el, preSid = null, preCid = null, preTid = null) {
   const db = getDB();
   if (!db.subjects.length) { el.innerHTML = `<span class="eyebrow">الدروس</span><h2 style="margin-top:0">الدروس</h2><div class="card muted">أنشئ مادة وفصلًا وموضوعًا أولًا من <a href="#/subjects">المواد</a>.</div>`; return; }
-  const st = { sid: preSid || db.subjects[0].id, cid: preCid || '', tid: preTid || '', q: '', f: 'todo' };
+  let savedF = {};
+  try { savedF = JSON.parse(localStorage.getItem('foses-lesson-filter') || '{}'); } catch {}
+  const chExists = (sid, cid) => (db.curriculum[sid]?.chapters || []).some(c => c.id === cid);
+  const tpExists = (sid, cid, tid) => (db.curriculum[sid]?.chapters || []).find(c => c.id === cid)?.topics?.some(t => t.id === tid);
+  let st;
+  if (preSid) {
+    st = { sid: preSid, cid: preCid || '', tid: preTid || '', q: '', f: savedF.f || 'todo' };
+  } else {
+    const sid = (savedF.sid && db.subjects.some(s => s.id === savedF.sid)) ? savedF.sid : '');
+    const cid = (savedF.cid && chExists(sid, savedF.cid)) ? savedF.cid : '';
+    const tid = (cid && savedF.tid && tpExists(sid, cid, savedF.tid)) ? savedF.tid : '';
+    st = { sid, cid, tid, q: savedF.q || '', f: savedF.f || 'todo' };
+  }
+  const saveFilter = () => { try { localStorage.setItem('foses-lesson-filter', JSON.stringify({ sid: st.sid, cid: st.cid, tid: st.tid, f: st.f, q: st.q })); } catch {} };
 
   el.innerHTML = `<span class="eyebrow">الدروس</span><div class="row spread"><h2 style="margin-top:0"><span class="h-ic">${icon('book', 20)}</span> تبويب الدروس</h2><button class="btn" id="naddOpen"><span class="ic">${icon('plus', 16)}</span> إضافة درس</button></div>
   <details class="filter-box"><summary><span class="h-ic">${icon('search', 18)}</span> تصفية وبحث <span class="chip hidden" id="fcount"></span></summary><div class="fld-row">
@@ -67,17 +80,17 @@ export async function pLessons(el, preSid = null, preCid = null, preTid = null) 
       const pf = +g('mnpf').value || null;
       tp.lessons.push({ id: uid('ls'), title, desc: '', content: '', duration: +g('mndur').value || 30, pageFrom: pf, pageTo: +g('mnpt').value || pf, remindAt: g('mnrem').value || null, completed: false, favorite: false, notes: '', lastStudied: null, createdAt: now() });
       saveLocal(); closeModal();
-      st.sid = ''; st.cid = ''; st.tid = ''; syncFilters(); drawList(); toast('أُضيف الدرس ✅');
+      st.sid = ''; st.cid = ''; st.tid = ''; saveFilter(); syncFilters(); drawList(); toast('أُضيف الدرس ✅');
     };
   };
   // التصفية
   const syncFilters = () => { fillSubjects($('fs'), st.sid, true); fillChapters($('fc'), st.sid, st.cid); fillTopics($('ft'), st.sid, st.cid, st.tid); $('ff').value = st.f; $('fq').value = st.q; };
   syncFilters();
-  $('fs').onchange = e => { st.sid = e.target.value; st.cid = ''; st.tid = ''; syncFilters(); drawList(); };
-  $('fc').onchange = e => { st.cid = e.target.value; st.tid = ''; syncFilters(); drawList(); };
-  $('ft').onchange = e => { st.tid = e.target.value; drawList(); };
-  $('ff').onchange = e => { st.f = e.target.value; drawList(); };
-  $('fq').oninput = e => { st.q = e.target.value.trim(); drawList(); };
+  $('fs').onchange = e => { st.sid = e.target.value; st.cid = ''; st.tid = ''; saveFilter(); syncFilters(); drawList(); };
+  $('fc').onchange = e => { st.cid = e.target.value; st.tid = ''; saveFilter(); syncFilters(); drawList(); };
+  $('ft').onchange = e => { st.tid = e.target.value; saveFilter(); drawList(); };
+  $('ff').onchange = e => { st.f = e.target.value; saveFilter(); drawList(); };
+  $('fq').oninput = e => { st.q = e.target.value.trim(); saveFilter(); drawList(); };
 
   function collect() {
     const out = [];

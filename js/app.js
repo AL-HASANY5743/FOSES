@@ -17,6 +17,8 @@ document.getElementById('themeBtn').onclick=()=>{
 document.getElementById('menuBtn').onclick=()=>{
   const s=document.getElementById('sidebar'); s.style.display=s.style.display==='flex'?'none':'flex';
 };
+document.getElementById('syncDot').onclick=()=>{ location.hash='#/repo'; };
+document.getElementById('syncDot').style.cursor='pointer';
 
 // PWA install
 let deferred=null;
