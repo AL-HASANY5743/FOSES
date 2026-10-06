@@ -10,6 +10,15 @@ export function setSession(s, remember=false){
   else localStorage.removeItem('foses-remember');
 }
 export function clearSession(){ sessionStorage.removeItem(SESS); localStorage.removeItem('foses-remember'); localStorage.removeItem('foses-token'); }
+// دمج تحديث في الجلسة المحفوظة (مثل الفرع الصحيح) في المخزنين معًا
+export function updateSession(patch){
+  try{
+    const cur=getSession()||{};
+    const next={...cur,...patch};
+    sessionStorage.setItem(SESS, JSON.stringify(next));
+    if(localStorage.getItem('foses-remember')) localStorage.setItem('foses-remember', JSON.stringify({...next, token: next.token ? 'remembered' : null}));
+  }catch{}
+}
 
 export function getToken(){
   return sessionStorage.getItem('foses-token') || localStorage.getItem('foses-token') || null;

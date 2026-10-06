@@ -1,4 +1,4 @@
-const CACHE='foses-v38';
+const CACHE='foses-v39';
 const ASSETS=['./','./index.html','./manifest.webmanifest'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));

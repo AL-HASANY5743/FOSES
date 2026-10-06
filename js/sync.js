@@ -1,17 +1,18 @@
 // Sync engine: offline-first, debounced push, pull-on-login, conflict-safe.
 import { getDB } from './store.js';
 import { pullAll, pushAll, ensureDataRepo, readFile } from './github.js';
-import { getToken, getSession } from './auth.js';
+import { getToken, getSession, updateSession } from './auth.js';
 import { CONFIG } from './config.js';
 import { normalizeExams, ensureTimetable } from './models.js';
 
 let shas={};
-let timer=null, syncing=false, lastStatus='local';
+let timer=null, syncing=false, lastStatus='local', lastError='';
 const subs=new Set();
 export const onSync=s=>{subs.add(s);return()=>subs.delete(s)};
-function setStatus(st,msg){ lastStatus=st; subs.forEach(f=>{try{f(st,msg)}catch{}}); paintDot(st); }
-function paintDot(st){ const d=document.getElementById('syncDot'); if(!d) return; d.className='sync-dot'+(st==='synced'?'':st==='local'?' off':' err'); d.title='sync: '+st; }
+function setStatus(st,msg){ lastStatus=st; if(st==='error'&&msg)lastError=msg; if(st!=='error')lastError=''; subs.forEach(f=>{try{f(st,msg)}catch{}}); paintDot(st); }
+function paintDot(st){ const d=document.getElementById('syncDot'); if(!d) return; d.className='sync-dot'+(st==='synced'?'':st==='local'?' off':' err'); d.title='sync: '+st+(st==='error'&&lastError?' — '+lastError:''); }
 export const syncStatus=()=>lastStatus;
+export const lastSyncError=()=>lastError;
 export const getShas=()=>shas;
 
 export async function initialSync(){
@@ -20,8 +21,13 @@ export async function initialSync(){
   const repo=sess.repoName||CONFIG.dataRepoName, branch=sess.branch||'main';
   try{
     setStatus('syncing');
-    await ensureDataRepo(tok,sess.login,repo,sess.private!==false,branch);
-    const {out,shas:newShas}=await pullAll(tok,sess.login,repo,CONFIG.files,branch);
+    const created=await ensureDataRepo(tok,sess.login,repo,sess.private!==false,branch);
+    // اعتماد الفرع الافتراضي الحقيقي للمستودع (main/master) بدل الافتراض
+    if(created?.default_branch && created.default_branch!==branch){
+      updateSession({branch:created.default_branch});
+      sess.branch=created.default_branch;
+    }
+    const {out,shas:newShas}=await pullAll(tok,sess.login,repo,CONFIG.files,sess.branch||branch);
     shas=newShas;
     if(Object.keys(out).length){
       const db=getDB();

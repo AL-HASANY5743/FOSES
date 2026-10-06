@@ -1,7 +1,8 @@
 import { getDB, saveLocal, replaceAll, resetDemo } from '../store.js';
 import { getSession, setSession, clearSession, getToken, setToken, fetchMe, deviceStart, devicePoll } from '../auth.js';
-import { ensureDataRepo, getRepo, readFile, writeRawFile } from '../github.js';
+import { ensureDataRepo, getRepo, readFile, writeRawFile, deleteFile } from '../github.js';
 import { initialSync, pushNow } from '../sync.js';
+import { lastSyncError } from '../sync.js';
 import { validateCurriculumImport, normalizeImport, DB_DEFAULTS } from '../models.js';
 import { esc, CONFIG, now } from '../config.js';
 import { toast, modal, closeModal, download } from '../ui.js';
@@ -209,4 +210,48 @@ export async function pRepo(el){
     :'لا يوجد ريبو بعد — سيُنشأ تلقائيًا عند أول مزامنة.';
     box.querySelector('#push')?.addEventListener('click',async()=>{await pushNow('📚 fos: manual backup');toast('تم الدفع ✅');});
   }catch(e){ box.textContent='خطأ: '+e.message; }
+  // بطاقة حالة المزامنة + التشخيص
+  const err = lastSyncError();
+  el.insertAdjacentHTML('beforeend', `<div class="card" id="diagCard"><b>🩺 حالة المزامنة</b>
+  <p class="muted small">${err ? 'آخر خطأ: <span class="kbd" dir="ltr">' + esc(err) + '</span>' : 'لا أخطاء مسجلة حاليًا.'}</p>
+  <div class="row"><button class="btn sm" id="retry">🔄 إعادة المحاولة</button><button class="btn sm ghost" id="diagBtn">تشغيل التشخيص</button></div>
+  <div id="diagOut" class="small" style="margin-top:8px"></div></div>`);
+  el.querySelector('#retry').onclick = async () => { toast('جارٍ إعادة المزامنة...'); await initialSync(); pRepo(el); };
+  el.querySelector('#diagBtn').onclick = () => runDiag(el.querySelector('#diagOut'));
+}
+
+async function runDiag(out) {
+  const tok = getToken(), sess = getSession();
+  const repo = sess?.repoName || CONFIG.dataRepoName;
+  const owner = sess?.login;
+  const line = (ok, t) => { out.innerHTML += `<div>${ok ? '✅' : '❌'} ${t}</div>`; };
+  out.innerHTML = '';
+  if (!tok || !owner) { line(false, 'غير مسجل الدخول — سجّل الدخول أولًا من صفحة الدخول.'); return; }
+  try {
+    const me = await fetchMe(tok);
+    line(true, `الرمز صالح — الحساب: @${esc(me.login)}`);
+    if (me.login !== owner) line(false, `الرمز لحساب مختلف (@${esc(me.login)}) عن الجلسة (@${esc(owner)}) — سجّل الخروج والدخول مجددًا.`);
+  } catch (e) { line(false, `الرمز مرفوض (401): ${esc(e.message)}. أنشئ رمزًا جديدًا بصلاحية repo.`); return; }
+  let info = null;
+  try {
+    info = await getRepo(tok, owner, repo);
+    if (!info) { line(false, `المستودع ${esc(owner)}/${esc(repo)} غير موجود.`);
+      try { await ensureDataRepo(tok, owner, repo, true, 'main'); line(true, 'أُنشئ المستودع تلقائيًا ✅'); }
+      catch (e2) { line(false, `تعذر الإنشاء: ${esc(e2.message)} — أنشئه يدويًا أو وسّع صلاحيات الرمز.`); return; }
+      info = await getRepo(tok, owner, repo);
+    } else line(true, `المستودع موجود (${info.private ? 'خاص 🔒' : 'عام 🌍'}) — الفرع: ${esc(info.default_branch)}`);
+  } catch (e) { line(false, `تعذر الوصول للمستودع: ${esc(e.message)}`); return; }
+  const branch = info?.default_branch || 'main';
+  try {
+    await readFile(tok, owner, repo, 'settings.json', branch);
+    line(true, `القراءة من الفرع ${esc(branch)} تعمل.`);
+  } catch (e) { line(false, `فشل القراءة: ${esc(e.message)}`); }
+  try {
+    const w = await writeRawFile(tok, owner, repo, '.fos-ping.json', '{"ping":1}', 'fos: ping', branch, null).catch(async err => {
+      if (err.code === 422) { const cur = await readFile(tok, owner, repo, '.fos-ping.json', branch); return writeRawFile(tok, owner, repo, '.fos-ping.json', '{"ping":2}', 'fos: ping', branch, cur.sha); }
+      throw err;
+    });
+    await deleteFile(tok, owner, repo, '.fos-ping.json', w.content.sha, 'fos: ping cleanup', branch);
+    line(true, 'الكتابة والحذف تعمل ✅ — المزامنة يجب أن تنجح. اضغط إعادة المحاولة.');
+  } catch (e) { line(false, `فشل الكتابة: ${esc(e.message)} — الرمز يحتاج صلاحية Contents (كتابة).`); }
 }
